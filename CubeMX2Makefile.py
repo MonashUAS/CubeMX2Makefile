@@ -29,8 +29,14 @@ mcu_regex_to_cflags_dict = {
     'STM32(F|L)7': '-mthumb -mcpu=cortex-m7 -mfpu=fpv4-sp-d16 -mfloat-abi=hard',
 }
 
+def endswithlist(s, suffixes):
+    for suffix in suffixes:
+        if s.endswith(suffix):
+            return True
+    return False
+
 def main():
-    
+
     if len(sys.argv) != 2:
         sys.stderr.write("\nSTM32CubeMX project to Makefile V1.9\n")
         sys.stderr.write("-==================================-\n")
@@ -68,32 +74,41 @@ def main():
     ctx = []
 
     c_set = {}
-    c_set['source_endswith'] = '.c'
+    c_set['source_endswith'] = ['.c']
     c_set['source_subst'] = 'C_SOURCES ='
-    c_set['inc_endswith'] = '.h'
+    c_set['inc_endswith'] = ['.h']
     c_set['inc_subst'] = 'C_INCLUDES ='
     c_set['first'] = True
     c_set['relpath_stored'] = ''
     ctx.append(c_set)
 
+    cxx_set = {}
+    cxx_set['source_endswith'] = ['.cpp']
+    cxx_set['source_subst'] = 'CXX_SOURCES ='
+    cxx_set['inc_endswith'] = ['.h', '.hpp']
+    cxx_set['inc_subst'] = 'CXX_INCLUDES ='
+    cxx_set['first'] = True
+    cxx_set['relpath_stored'] = ''
+    ctx.append(cxx_set)
+
     asm_set = {}
-    asm_set['source_endswith'] = '.s'
+    asm_set['source_endswith'] = ['.s']
     asm_set['source_subst'] = 'ASM_SOURCES ='
-    asm_set['inc_endswith'] = '.inc'
+    asm_set['inc_endswith'] = ['.inc']
     asm_set['inc_subst'] = 'AS_INCLUDES ='
     asm_set['first'] = True
     asm_set['relpath_stored'] = ''
     ctx.append(asm_set)
 
     for path, dirs, files in os.walk(proj_folder_path):
-		relpath = os.path.relpath(path,proj_folder_path)
+        relpath = os.path.relpath(path,proj_folder_path)
         # only search for source and header files in Drivers, Inc and Src folders
         if not (relpath.startswith("Drivers") or relpath.startswith("Inc") or relpath.startswith("Src")):
             continue
         for file in files:
             for s in ctx:
 
-                if file.endswith(s['source_endswith']):
+                if endswithlist(file, s['source_endswith']):
                     s['source_subst'] += ' \\\n  '
 
                     #Split Windows style paths into tokens
@@ -107,18 +122,11 @@ def main():
                             s['source_subst'] += '/' + path_tok
                     s['source_subst'] += '/' + file
 
-                if file.endswith(s['inc_endswith']):
+                if endswithlist(file, s['inc_endswith']):
                     #only include a path once
                     if relpath != s['relpath_stored']:
                         s['relpath_stored'] = relpath
-
-                        #If this is the first include, we already have the 'C_INCLUDES ='
-                        if s['first']:
-                            s['first'] = False
-                            s['inc_subst'] += ' -I'
-                        else:
-                            s['inc_subst'] += '\nC_INCLUDES += -I'
-
+                        s['inc_subst'] += ' \\\n  -I'
 
                         #Split Windows style paths into tokens
                         #Unix style path emit a single token
@@ -128,8 +136,8 @@ def main():
                             if path_tok == relpath_split[0]:
                                 s['inc_subst'] += path_tok
                             else:
-                                s['inc_subst'] += '/' + path_tok         
-                    
+                                s['inc_subst'] += '/' + path_tok
+
     # .cproject file
     try:
         tree = xml.etree.ElementTree.parse(ac6_cproject_path)
@@ -159,12 +167,12 @@ def main():
     as_defs_subst = 'AS_DEFS ='
 
     # C symbols
-    c_defs_subst = 'C_DEFS ='
+    defs_subst = ''
     c_def_node_list = root.findall('.//tool/option[@valueType="definedSymbols"]/listOptionValue')
     for c_def_node in c_def_node_list:
         c_def_str = c_def_node.attrib.get('value')
         if c_def_str:
-            c_defs_subst += ' -D\'{}\''.format(c_def_str)
+            defs_subst += ' -D\'{}\''.format(c_def_str)
 
     # Link script
     ld_script_node_list = root.find('.//tool/option[@superClass="fr.ac6.managedbuild.tool.gnu.cross.c.linker.script"]')
@@ -181,11 +189,14 @@ def main():
         MCU = cflags_subst,
         LDMCU = ld_subst,
         C_SOURCES = c_set['source_subst'],
+        CXX_SOURCES = cxx_set['source_subst'],
         ASM_SOURCES = asm_set['source_subst'],
         AS_DEFS = as_defs_subst,
         AS_INCLUDES = asm_set['inc_subst'],
-        C_DEFS = c_defs_subst,
+        C_DEFS = 'C_DEFS =' + defs_subst,
         C_INCLUDES = c_set['inc_subst'],
+        CXX_DEFS = 'CXX_DEFS =' + defs_subst,
+        CXX_INCLUDES = cxx_set['inc_subst'],
         LDSCRIPT = ld_script_subst)
 
     makefile_path = os.path.join(proj_folder_path, 'Makefile')
@@ -197,7 +208,7 @@ def main():
         sys.exit(C2M_ERR_IO)
 
     sys.stdout.write("Makefile created: {}\n".format(makefile_path))
-    
+
     sys.exit(C2M_ERR_SUCCESS)
 
 
