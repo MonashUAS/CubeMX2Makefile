@@ -86,12 +86,15 @@ def main():
     ctx.append(asm_set)
 
     for path, dirs, files in os.walk(proj_folder_path):
+		relpath = os.path.relpath(path,proj_folder_path)
+        # only search for source and header files in Drivers, Inc and Src folders
+        if not (relpath.startswith("Drivers") or relpath.startswith("Inc") or relpath.startswith("Src")):
+            continue
         for file in files:
             for s in ctx:
 
                 if file.endswith(s['source_endswith']):
                     s['source_subst'] += ' \\\n  '
-                    relpath = os.path.relpath(path,proj_folder_path)
 
                     #Split Windows style paths into tokens
                     #Unix style path emit a single token
@@ -105,8 +108,6 @@ def main():
                     s['source_subst'] += '/' + file
 
                 if file.endswith(s['inc_endswith']):
-                    relpath = os.path.relpath(path,proj_folder_path)
-
                     #only include a path once
                     if relpath != s['relpath_stored']:
                         s['relpath_stored'] = relpath
