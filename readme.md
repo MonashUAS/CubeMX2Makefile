@@ -5,3 +5,10 @@ This program generates a Makefile from STM32CubeMX (http://www.st.com/stm32cube)
 Copyright (c) 2016, Baoshi Zhu. All rights reserved.
 
 Source code in this project is governed by Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+
+## Differences to original
+
+- Adds support for c++ source code.
+- Only searches in `Drivers`, `Inc` and `Src` directories for source files.
+- Added support for an optional `inc.mk` to add persistant, custom changes to the Makefile.
+    - `inc.mk` must be in the same directory as the Makefile.
