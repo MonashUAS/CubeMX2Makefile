@@ -163,7 +163,7 @@ def main():
     for c_def_node in c_def_node_list:
         c_def_str = c_def_node.attrib.get('value')
         if c_def_str:
-            c_defs_subst += ' -D{}'.format(c_def_str)
+            c_defs_subst += ' -D\'{}\''.format(c_def_str)
 
     # Link script
     ld_script_node_list = root.find('.//tool/option[@superClass="fr.ac6.managedbuild.tool.gnu.cross.c.linker.script"]')
